@@ -22,7 +22,7 @@ First step is to set up any special settings for R used in this analysis and pro
 ```r
 library(data.table)
 library(date)
-library(plyr)
+#library(plyr)
 library(dplyr)
 library(ggplot2)
 setwd("~/R/ReproducibleResearch/PA1")
@@ -35,15 +35,19 @@ setwd("~/R/ReproducibleResearch/PA1")
 * RStudio, Version 0.98.1091
 * R Version 3.1.2 (Pumpkin Helmet)
 
+All graphs were create using ggplot.
+
 #### 2.2 Data for Study
 Next step is to load the data for the study.  The data was originally in compressed form at  <https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip> and was downloaded and  decompressed to my local drive as activity.csv to be read into my local copy of R.
 
 ```r
+if (!file.exists("activity.csv")) {
+    url="http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+    download.file(url, "activity.zip", quiet=T)
+    unzip("activity.zip")
+    unlink("activity.zip")
+    }
 df.activity <- fread("activity.csv", data.table=F)
-```
-Here is the structure of the data read in:
-
-```r
 str(df.activity)
 ```
 
@@ -53,7 +57,6 @@ str(df.activity)
 ##  $ date    : chr  "2012-10-01" "2012-10-01" "2012-10-01" "2012-10-01" ...
 ##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
 ```
-Here is a summary of the data read in:
 
 ```r
 summary(df.activity)
@@ -74,16 +77,9 @@ At this point, the dates, which were read in as a character class, needs to be t
 ```r
 df.activity[,"date"] <- as.Date(df.activity[,"date"])
 rollUpSteps <- summarise(group_by(df.activity, date), steps=sum(steps))
-print("Summary of transformed rolled up data set:")
+summary.rollUpSteps <- summary(rollUpSteps)
 ```
-
-```
-## [1] "Summary of transformed rolled up data set:"
-```
-
-```r
-summary(rollUpSteps)
-```
+Summary of transformed rolled up data set:
 
 ```
 ##       date                steps      
@@ -110,7 +106,7 @@ tsPlot <- tsPlot + scale_y_continuous(breaks=1:25)
 tsPlot
 ```
 
-![plot of chunk unnamed-chunk-6](figure/unnamed-chunk-6-1.png) 
+![plot of chunk unnamed-chunk-5](figure/unnamed-chunk-5-1.png) 
 
 
 #### 3.2 Mean and Median of Steps per Day
@@ -147,7 +143,7 @@ tsPlot <- tsPlot + labs(title="Mean Number of Steps by Interval",
 tsPlot 
 ```
 
-![plot of chunk unnamed-chunk-10](figure/unnamed-chunk-10-1.png) 
+![plot of chunk unnamed-chunk-9](figure/unnamed-chunk-9-1.png) 
 
 #### 4.3 Maximum Interval
 
@@ -169,12 +165,13 @@ missingValues <- nrow(df.fix)
 Missing Values = 2304
 
 #### 5.2 Impute Missing Values
-Use the dataframe created for average daily activity pattern and use those to impute the values for incomplete cases. Created a new dataset that is equal to the original dataset but with the missing data filled in using the mean steps taken for that interval.
+Use the dataframe created for average daily activity pattern, round those steps to an integer and use those to impute the values for incomplete cases. Created a new dataset that is equal to the original dataset but with the missing data filled in using the mean steps taken for that interval.
 
 ```r
-df.imputed <- join(df.fix, 
-                   rollUpInterval,
-                   by="interval")[,c('msteps' , 'date', 'interval')]
+rollUpInterval$msteps <- round(rollUpInterval$msteps, 0)
+df.imputed <- left_join(df.fix,
+                        rollUpInterval,
+                        by="interval")[,c('msteps' , 'date', 'interval')]
 colnames(df.imputed) <- c('steps', 'date', 'interval')
 df.activityImputed <- rbind(df.imputed,
                             df.activity[!is.na(df.activity$steps),])
@@ -194,7 +191,7 @@ tsPlot <- tsPlot + scale_y_continuous(breaks=1:25)
 tsPlot
 ```
 
-![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14-1.png) 
+![plot of chunk unnamed-chunk-13](figure/unnamed-chunk-13-1.png) 
 
 
 #### 5.4 Compare Data with Imputed Values to Original Data
@@ -206,32 +203,32 @@ medianStepDayImputed <- median(rollUpStepsImputed$steps)
 ```
 
 ```
-## [1] "Mean steps per day (Imputed) =  10766.1886792453"
+## [1] "Mean steps per day (Imputed) =  10765.6393442623"
 ```
 
 ```
-## [1] "Median steps per day (Imputed) =  10766.1886792453"
+## [1] "Median steps per day (Imputed) =  10762"
 ```
 
 #### 5.5 Differences Using Imputed Data
 
 ```r
-difMean <- meanStepDayImputed - meanStepDay
-difMedian <- medianStepDayImputed - medianStepDay
+difMean <- round(meanStepDayImputed - meanStepDay, 1)
+difMedian <- round(medianStepDayImputed - medianStepDay, 0)
 difTotalSteps <- sum(rollUpStepsImputed$steps) - 
                  sum(rollUpSteps$steps, na.rm=T)
 ```
 
 ```
-## [1] "Change in mean steps per day using imputed data = 0(no significant change in mean steps per day)"
+## [1] "Change in mean steps per day using imputed data ~ -0.5(no significant change in mean steps per day)"
 ```
 
 ```
-## [1] "Change in median steps per day using imputed data = 1.1886792452824(small increase in median steps per day)"
+## [1] "Change in median steps per day using imputed data ~ -3(no significant change in median steps per day)"
 ```
 
 ```
-## [1] "Increase in total steps = 86129.5094339623"
+## [1] "Increase in total steps = 86096"
 ```
 
 ## 6.0 Analysis of Weekday Versus Weekend Activity
@@ -258,4 +255,4 @@ tsPlot <- tsPlot + theme(strip.background = element_rect(colour="grey", fill="bi
 tsPlot
 ```
 
-![plot of chunk unnamed-chunk-20](figure/unnamed-chunk-20-1.png) 
+![plot of chunk unnamed-chunk-19](figure/unnamed-chunk-19-1.png) 

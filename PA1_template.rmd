@@ -15,13 +15,13 @@ This assignment will be described in multiple parts and answers the questions de
 6. Analysis of Weekday Versus Weekend Activity
 
 ## 2.0 Processing
-First step is to set up any special settings for R used in this analysis and provide information about the overall R environment.
+First step is to set up any special settings for R used in this analysis and provide information about the overall R environment.  There are several additional libraries used that are not in the standard R download.
 
 #### 2.1 Working Environment
 ```{r, message=FALSE}
 library(data.table)
 library(date)
-library(plyr)
+#library(plyr)
 library(dplyr)
 library(ggplot2)
 setwd("~/R/ReproducibleResearch/PA1")
@@ -34,25 +34,30 @@ setwd("~/R/ReproducibleResearch/PA1")
 * RStudio, Version 0.98.1091
 * R Version 3.1.2 (Pumpkin Helmet)
 
+All graphs were create using ggplot.
+
 #### 2.2 Data for Study
 Next step is to load the data for the study.  The data was originally in compressed form at  <https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip> and was downloaded and  decompressed to my local drive as activity.csv to be read into my local copy of R.
 ```{r}
+if (!file.exists("activity.csv")) {
+    url="http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+    download.file(url, "activity.zip", quiet=T)
+    unzip("activity.zip")
+    unlink("activity.zip")
+    }
 df.activity <- fread("activity.csv", data.table=F)
-```
-Here is the structure of the data read in:
-```{r}
 str(df.activity)
-```
-Here is a summary of the data read in:
-```{r}
 summary(df.activity)
 ```
 At this point, the dates, which were read in as a character class, needs to be transformed into a date class.  Create a data table to sum up steps for each day.
 ```{r}
 df.activity[,"date"] <- as.Date(df.activity[,"date"])
 rollUpSteps <- summarise(group_by(df.activity, date), steps=sum(steps))
-print("Summary of transformed rolled up data set:")
-summary(rollUpSteps)
+summary.rollUpSteps <- summary(rollUpSteps)
+```
+Summary of transformed rolled up data set:
+```{r, echo=FALSE}
+summary.rollUpSteps
 ```
 
 ## 3.0 Analyze Steps per Day
@@ -115,11 +120,12 @@ missingValues <- nrow(df.fix)
 Missing Values = `r missingValues`
 
 #### 5.2 Impute Missing Values
-Use the dataframe created for average daily activity pattern and use those to impute the values for incomplete cases. Created a new dataset that is equal to the original dataset but with the missing data filled in using the mean steps taken for that interval.
+Use the dataframe created for average daily activity pattern, round those steps to an integer and use those to impute the values for incomplete cases. Created a new dataset that is equal to the original dataset but with the missing data filled in using the mean steps taken for that interval.
 ```{r}
-df.imputed <- join(df.fix, 
-                   rollUpInterval,
-                   by="interval")[,c('msteps' , 'date', 'interval')]
+rollUpInterval$msteps <- round(rollUpInterval$msteps, 0)
+df.imputed <- left_join(df.fix,
+                        rollUpInterval,
+                        by="interval")[,c('msteps' , 'date', 'interval')]
 colnames(df.imputed) <- c('steps', 'date', 'interval')
 df.activityImputed <- rbind(df.imputed,
                             df.activity[!is.na(df.activity$steps),])
@@ -152,16 +158,16 @@ print(paste("Median steps per day (Imputed) = ", medianStepDayImputed))
 
 #### 5.5 Differences Using Imputed Data
 ```{r}
-difMean <- meanStepDayImputed - meanStepDay
-difMedian <- medianStepDayImputed - medianStepDay
+difMean <- round(meanStepDayImputed - meanStepDay, 1)
+difMedian <- round(medianStepDayImputed - medianStepDay, 0)
 difTotalSteps <- sum(rollUpStepsImputed$steps) - 
                  sum(rollUpSteps$steps, na.rm=T)
 ```
 ```{r, echo=FALSE}
-print(paste0("Change in mean steps per day using imputed data = ",
+print(paste0("Change in mean steps per day using imputed data ~ ",
              difMean, "(no significant change in mean steps per day)"))
-print(paste0("Change in median steps per day using imputed data = ",
-             difMedian, "(small increase in median steps per day)"))
+print(paste0("Change in median steps per day using imputed data ~ ",
+             difMedian, "(no significant change in median steps per day)"))
 print(paste0("Increase in total steps = ",
              difTotalSteps))
 ```
